@@ -5,6 +5,9 @@ const Player = @import("player.zig").Player;
 const Bounds = @import("player.zig").Bounds;
 const Input = @import("player.zig").Input;
 const clamp = @import("player.zig").clamp;
+const DialogueState = @import("dialogue.zig").DialogueState;
+const npc_mod = @import("npc.zig");
+const Npc = npc_mod.Npc;
 
 pub const screen_width: f32 = 1280;
 pub const screen_height: f32 = 720;
@@ -29,6 +32,8 @@ pub const GameState = struct {
     player: Player = Player.init(1050, 750),
     camera_x: f32 = 0,
     camera_y: f32 = 0,
+    dialogue: DialogueState = .{},
+    nearby_npc: ?usize = null, // index into district_npcs
 
     pub fn init() GameState {
         return .{};
@@ -39,10 +44,33 @@ pub const GameState = struct {
         self.player = Player.init(1050, 750);
         self.camera_x = 0;
         self.camera_y = 0;
+        self.dialogue = .{};
+        self.nearby_npc = null;
+    }
+
+    pub fn inDialogue(self: *const GameState) bool {
+        return self.dialogue.active;
+    }
+
+    pub fn tryInteract(self: *GameState) void {
+        if (self.dialogue.active) return;
+        if (self.nearby_npc) |idx| {
+            self.dialogue.start(npc_mod.district_npcs[idx].dialogue);
+        }
     }
 
     pub fn updateGameplay(self: *GameState, input: Input, dt: f32) void {
-        self.player.update(input, dt, world_bounds);
+        // Don't move during dialogue
+        if (!self.dialogue.active) {
+            self.player.update(input, dt, world_bounds);
+        }
+
+        // Check for nearby NPCs
+        self.nearby_npc = npc_mod.findInteractable(
+            &npc_mod.district_npcs,
+            self.player.centerX(),
+            self.player.centerY(),
+        );
 
         // Camera follows player, centered
         self.camera_x = self.player.centerX() - screen_width / 2.0;

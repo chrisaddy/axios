@@ -3,4 +3,6 @@ test {
     _ = @import("player.zig");
     _ = @import("game_state.zig");
     _ = @import("save.zig");
+    _ = @import("dialogue.zig");
+    _ = @import("npc.zig");
 }

@@ -55,10 +55,30 @@ fn update(dt: f32) void {
             }
         },
         .gameplay => {
-            gs.updateGameplay(readInput(), dt);
+            if (gs.inDialogue()) {
+                // Dialogue input
+                if (c.IsKeyPressed(c.KEY_W) or c.IsKeyPressed(c.KEY_UP)) {
+                    gs.dialogue.selectUp();
+                }
+                if (c.IsKeyPressed(c.KEY_S) or c.IsKeyPressed(c.KEY_DOWN)) {
+                    gs.dialogue.selectDown();
+                }
+                if (c.IsKeyPressed(c.KEY_ENTER) or c.IsKeyPressed(c.KEY_SPACE) or c.IsKeyPressed(c.KEY_E)) {
+                    _ = gs.dialogue.advance();
+                }
+                if (c.IsKeyPressed(c.KEY_ESCAPE)) {
+                    gs.dialogue.close();
+                }
+            } else {
+                gs.updateGameplay(readInput(), dt);
 
-            if (c.IsKeyPressed(c.KEY_ESCAPE)) {
-                gs.pause();
+                // Interact with nearby NPC
+                if (c.IsKeyPressed(c.KEY_E) or c.IsKeyPressed(c.KEY_ENTER)) {
+                    gs.tryInteract();
+                }
+                if (c.IsKeyPressed(c.KEY_ESCAPE)) {
+                    gs.pause();
+                }
             }
             if (c.IsKeyPressed(c.KEY_F5)) {
                 if (save_mod.save(&gs)) {
