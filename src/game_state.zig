@@ -11,6 +11,11 @@ const Flag = @import("flags.zig").Flag;
 const Flags = @import("flags.zig").Flags;
 const QuestLog = @import("quest.zig").QuestLog;
 const Formation = @import("formation.zig").Formation;
+const JournalState = @import("journal.zig").JournalState;
+const time_mod = @import("time_of_day.zig");
+const TimeOfDay = time_mod.TimeOfDay;
+const vigil_mod = @import("vigil.zig");
+const VigilState = vigil_mod.VigilState;
 const npc_mod = @import("npc.zig");
 
 pub const screen_width: f32 = 1280;
@@ -23,6 +28,7 @@ pub const Scene = enum {
     title,
     gameplay,
     paused,
+    vigil,
 };
 
 pub const MenuAction = enum {
@@ -41,6 +47,9 @@ pub const GameState = struct {
     flags: Flags = .{},
     quests: QuestLog = .{},
     formation: Formation = .{},
+    journal: JournalState = .{},
+    time: TimeOfDay = .morning,
+    vigil: VigilState = .{},
 
     pub fn init() GameState {
         return .{};
@@ -56,6 +65,9 @@ pub const GameState = struct {
         self.flags = .{};
         self.quests = .{};
         self.formation = .{};
+        self.journal = .{};
+        self.time = .morning;
+        self.vigil = .{};
     }
 
     pub fn inDialogue(self: *const GameState) bool {
@@ -77,8 +89,29 @@ pub const GameState = struct {
         const flag = self.dialogue.advance();
         if (flag != .none) {
             self.flags.grant(flag);
+            self.time = time_mod.computeTimeOfDay(&self.flags);
         }
         self.applyEffect(self.dialogue.pending_effect);
+
+        // Check if vigil should trigger (oil resolved + spoke to Theophilos about it)
+        if (!self.dialogue.active and !self.flags.has(.vigil_triggered)) {
+            if (self.flags.has(.oil_resolved) and self.time == .evening) {
+                self.startVigil();
+            }
+        }
+    }
+
+    pub fn startVigil(self: *GameState) void {
+        self.flags.grant(.vigil_triggered);
+        self.vigil = vigil_mod.buildVigil(&self.flags, &self.formation);
+        self.scene = .vigil;
+    }
+
+    pub fn advanceVigil(self: *GameState) void {
+        const ended = self.vigil.advance();
+        if (ended) {
+            self.scene = .title;
+        }
     }
 
     fn applyEffect(self: *GameState, effect: Effect) void {
@@ -96,6 +129,8 @@ pub const GameState = struct {
         if (effect.virtue) |v| {
             self.formation.add(v, effect.virtue_amount);
         }
+        // Recompute time based on progression
+        self.time = time_mod.computeTimeOfDay(&self.flags);
     }
 
     pub fn updateGameplay(self: *GameState, input: Input, dt: f32) void {

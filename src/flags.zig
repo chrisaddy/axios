@@ -19,6 +19,8 @@ pub const Flag = enum(u8) {
     // Quest completion
     first_instruction_done,
     widows_oil_done,
+    // Vigil
+    vigil_triggered,
     _,
 };
 

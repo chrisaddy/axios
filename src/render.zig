@@ -7,6 +7,10 @@ const player_mod = @import("player.zig");
 const npc_mod = @import("npc.zig");
 const DialogueState = @import("dialogue.zig").DialogueState;
 const Flags = @import("flags.zig").Flags;
+const journal_mod = @import("journal.zig");
+const JournalState = journal_mod.JournalState;
+const TimeOfDay = @import("time_of_day.zig").TimeOfDay;
+const VigilState = @import("vigil.zig").VigilState;
 
 const screen_width: c_int = @intFromFloat(gs_mod.screen_width);
 const screen_height: c_int = @intFromFloat(gs_mod.screen_height);
@@ -71,6 +75,7 @@ pub fn drawFrame(gs: *const GameState, has_save: bool) void {
             drawGameplay(gs);
             drawPause();
         },
+        .vigil => drawVigil(&gs.vigil),
     }
 }
 
@@ -134,10 +139,22 @@ fn drawGameplay(gs: *const GameState) void {
         }
     }
 
+    // Time-of-day tint
+    const tint = c.Color{ .r = gs.time.tintR(), .g = gs.time.tintG(), .b = gs.time.tintB(), .a = gs.time.tintA() };
+    if (tint.a > 0) {
+        c.DrawRectangle(0, 0, screen_width, screen_height, tint);
+    }
+
     // HUD
     c.DrawRectangle(0, 0, screen_width, 36, hud_bg);
     c.DrawText("The Portico Quarter", 12, 8, 20, hud_color);
-    c.DrawText("WASD: Move  E: Talk  ESC: Pause  F5: Save", screen_width - 430, 10, 16, label_color);
+
+    // Time label
+    const time_label = @as([*:0]const u8, @ptrCast(gs.time.label().ptr));
+    const time_width = c.MeasureText(time_label, 16);
+    c.DrawText(time_label, @divTrunc(screen_width - time_width, 2), 10, 16, warm_stone);
+
+    c.DrawText("WASD  E:Talk  J:Journal  F5:Save", screen_width - 340, 10, 16, label_color);
 
     // Quest objective
     if (gs.quests.activeObjective()) |obj| {
@@ -147,9 +164,14 @@ fn drawGameplay(gs: *const GameState) void {
         c.DrawText(obj_cstr, 12, 40, 16, warm_stone);
     }
 
-    // Dialogue box (drawn last, on top of everything)
+    // Dialogue box
     if (gs.dialogue.active) {
         drawDialogue(&gs.dialogue);
+    }
+
+    // Journal overlay
+    if (gs.journal.open) {
+        drawJournal(gs);
     }
 }
 
@@ -255,6 +277,106 @@ fn drawWrappedText(text: [*:0]const u8, x: c_int, y: c_int, font_size: c_int, ma
     return line_y - y;
 }
 
+fn drawJournal(gs: *const GameState) void {
+    // Full-screen overlay
+    c.DrawRectangle(0, 0, screen_width, screen_height, c.Color{ .r = 15, .g = 12, .b = 20, .a = 220 });
+
+    const jx = 80;
+    const jy = 60;
+    const jw = screen_width - 160;
+    const jh = screen_height - 120;
+
+    c.DrawRectangle(jx, jy, jw, jh, c.Color{ .r = 20, .g = 18, .b = 24, .a = 255 });
+    c.DrawRectangleLinesEx(.{
+        .x = @floatFromInt(jx),
+        .y = @floatFromInt(jy),
+        .width = @floatFromInt(jw),
+        .height = @floatFromInt(jh),
+    }, 2, dialogue_border);
+
+    // Tab headers
+    const tabs = [_][]const u8{ "Quests", "People", "Codex" };
+    var tx: c_int = jx + 16;
+    for (tabs, 0..) |tab_name, idx| {
+        const tab_cstr = @as([*:0]const u8, @ptrCast(tab_name.ptr));
+        const is_active = @intFromEnum(gs.journal.tab) == idx;
+        const color = if (is_active) gold else muted;
+        c.DrawText(tab_cstr, tx, jy + 12, 20, color);
+        if (is_active) {
+            const tw = c.MeasureText(tab_cstr, 20);
+            c.DrawRectangle(tx, jy + 34, tw, 2, gold);
+        }
+        tx += 120;
+    }
+
+    c.DrawText("[A/D] Switch Tab    [J/ESC] Close", jx + jw - 320, jy + 14, 14, muted);
+
+    const content_y: c_int = jy + 50;
+    const content_x = jx + 20;
+    const content_w = jw - 40;
+
+    switch (gs.journal.tab) {
+        .quests => {
+            var cy = content_y;
+            for (&gs.quests.quests) |*q| {
+                if (q.stage == .not_started) continue;
+                const name_cstr = @as([*:0]const u8, @ptrCast(q.name.ptr));
+                const status_text: [*:0]const u8 = if (q.isComplete()) " (Complete)" else " (Active)";
+                const name_color = if (q.isComplete()) muted else gold;
+                c.DrawText(name_cstr, content_x, cy, 18, name_color);
+                const nw = c.MeasureText(name_cstr, 18);
+                c.DrawText(status_text, content_x + nw, cy, 14, muted);
+                cy += 24;
+
+                const desc_cstr = @as([*:0]const u8, @ptrCast(q.description.ptr));
+                const dh = drawWrappedText(desc_cstr, content_x + 12, cy, 15, content_w - 12, warm_stone);
+                cy += dh + 4;
+
+                if (q.currentObjective()) |obj| {
+                    const obj_cstr = @as([*:0]const u8, @ptrCast(obj.ptr));
+                    c.DrawText(">", content_x + 12, cy, 15, gold);
+                    _ = drawWrappedText(obj_cstr, content_x + 28, cy, 15, content_w - 28, label_color);
+                    cy += 22;
+                }
+                cy += 12;
+            }
+            if (cy == content_y) {
+                c.DrawText("No quests yet. Speak to Father Theophilos.", content_x, cy, 16, muted);
+            }
+        },
+        .people => {
+            var cy = content_y;
+            for (journal_mod.people_entries) |entry| {
+                if (!gs.flags.has(entry.requires)) continue;
+                const name_cstr = @as([*:0]const u8, @ptrCast(entry.name.ptr));
+                c.DrawText(name_cstr, content_x, cy, 18, gold);
+                cy += 22;
+                const desc_cstr = @as([*:0]const u8, @ptrCast(entry.description.ptr));
+                const dh = drawWrappedText(desc_cstr, content_x + 12, cy, 15, content_w - 12, warm_stone);
+                cy += dh + 10;
+            }
+            if (cy == content_y) {
+                c.DrawText("You have not met anyone yet.", content_x, cy, 16, muted);
+            }
+        },
+        .codex => {
+            var cy = content_y;
+            for (journal_mod.codex_entries) |entry| {
+                if (!gs.flags.has(entry.requires)) continue;
+                const term_cstr = @as([*:0]const u8, @ptrCast(entry.term.ptr));
+                c.DrawText(term_cstr, content_x, cy, 18, gold);
+                cy += 22;
+                const def_cstr = @as([*:0]const u8, @ptrCast(entry.definition.ptr));
+                const dh = drawWrappedText(def_cstr, content_x + 12, cy, 15, content_w - 12, warm_stone);
+                cy += dh + 10;
+            }
+            if (cy == content_y) {
+                c.DrawText("No entries yet. Explore and speak with people.", content_x, cy, 16, muted);
+            }
+        },
+    }
+}
+
 fn drawDialogue(ds: *const DialogueState) void {
     const node = ds.currentNode() orelse return;
 
@@ -354,6 +476,34 @@ fn measureWrappedHeight(text: [*:0]const u8, font_size: c_int, max_width: c_int)
     }
 
     return lines * line_height;
+}
+
+fn drawVigil(vigil: *const VigilState) void {
+    // Deep evening background
+    c.ClearBackground(c.Color{ .r = 10, .g = 8, .b = 16, .a = 255 });
+
+    const beat = vigil.currentBeat() orelse return;
+
+    const box_w = screen_width - 160;
+    const box_x = 80;
+
+    if (beat.speaker.len > 0) {
+        // Speaker name
+        const speaker_cstr = @as([*:0]const u8, @ptrCast(beat.speaker.ptr));
+        const speaker_width = c.MeasureText(speaker_cstr, 22);
+        c.DrawText(speaker_cstr, @divTrunc(screen_width - speaker_width, 2), screen_height / 3 - 30, 22, gold);
+    }
+
+    // Beat text (centered, wrapped)
+    const text_cstr = @as([*:0]const u8, @ptrCast(beat.text.ptr));
+    const text_h = measureWrappedHeight(text_cstr, 18, box_w);
+    const text_y = @divTrunc(screen_height - text_h, 2);
+    _ = drawWrappedText(text_cstr, box_x, text_y, 18, box_w, warm_stone);
+
+    // Continue prompt
+    const prompt = "[ENTER] Continue";
+    const pw = c.MeasureText(prompt, 16);
+    c.DrawText(prompt, @divTrunc(screen_width - pw, 2), screen_height - 60, 16, muted);
 }
 
 fn drawPlayer(p: *const player_mod.Player, cx: f32, cy: f32) void {

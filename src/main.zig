@@ -55,7 +55,18 @@ fn update(dt: f32) void {
             }
         },
         .gameplay => {
-            if (gs.inDialogue()) {
+            if (gs.journal.open) {
+                // Journal input
+                if (c.IsKeyPressed(c.KEY_J) or c.IsKeyPressed(c.KEY_ESCAPE)) {
+                    gs.journal.toggle();
+                }
+                if (c.IsKeyPressed(c.KEY_D) or c.IsKeyPressed(c.KEY_RIGHT)) {
+                    gs.journal.nextTab();
+                }
+                if (c.IsKeyPressed(c.KEY_A) or c.IsKeyPressed(c.KEY_LEFT)) {
+                    gs.journal.prevTab();
+                }
+            } else if (gs.inDialogue()) {
                 // Dialogue input
                 if (c.IsKeyPressed(c.KEY_W) or c.IsKeyPressed(c.KEY_UP)) {
                     gs.dialogue.selectUp();
@@ -75,6 +86,9 @@ fn update(dt: f32) void {
                 // Interact with nearby NPC
                 if (c.IsKeyPressed(c.KEY_E) or c.IsKeyPressed(c.KEY_ENTER)) {
                     gs.tryInteract();
+                }
+                if (c.IsKeyPressed(c.KEY_J)) {
+                    gs.journal.toggle();
                 }
                 if (c.IsKeyPressed(c.KEY_ESCAPE)) {
                     gs.pause();
@@ -96,6 +110,11 @@ fn update(dt: f32) void {
             }
             if (c.IsKeyPressed(c.KEY_Q)) {
                 gs.applyMenuAction(.quit_to_title);
+            }
+        },
+        .vigil => {
+            if (c.IsKeyPressed(c.KEY_ENTER) or c.IsKeyPressed(c.KEY_SPACE) or c.IsKeyPressed(c.KEY_E)) {
+                gs.advanceVigil();
             }
         },
     }
