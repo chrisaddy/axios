@@ -107,6 +107,42 @@ main {
   font-size: 1rem;
 }
 
+.contribute {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.contribute h2 {
+  color: var(--gold);
+  font-size: 1.5rem;
+  font-weight: normal;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+.contribute p {
+  color: var(--muted);
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.github-link {
+  display: inline-block;
+  color: var(--gold);
+  border: 1px solid var(--border);
+  padding: 0.6rem 1.5rem;
+  text-decoration: none;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.github-link:hover {
+  background: var(--gold);
+  color: var(--bg);
+}
+
 footer {
   text-align: center;
   color: var(--muted);
