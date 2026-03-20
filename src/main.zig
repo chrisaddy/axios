@@ -85,7 +85,11 @@ fn update(dt: f32) void {
 
                 // Interact with nearby NPC
                 if (c.IsKeyPressed(c.KEY_E) or c.IsKeyPressed(c.KEY_ENTER)) {
-                    gs.tryInteract();
+                    if (gs.nearby_npc != null) {
+                        gs.tryInteract();
+                    } else {
+                        gs.talkToAmbient();
+                    }
                 }
                 if (c.IsKeyPressed(c.KEY_J)) {
                     gs.journal.toggle();

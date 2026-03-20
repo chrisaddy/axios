@@ -11,6 +11,7 @@ const journal_mod = @import("journal.zig");
 const JournalState = journal_mod.JournalState;
 const TimeOfDay = @import("time_of_day.zig").TimeOfDay;
 const VigilState = @import("vigil.zig").VigilState;
+const ambient_mod = @import("ambient.zig");
 
 const screen_width: c_int = @intFromFloat(gs_mod.screen_width);
 const screen_height: c_int = @intFromFloat(gs_mod.screen_height);
@@ -128,14 +129,32 @@ fn drawGameplay(gs: *const GameState) void {
         drawNpc(&npc, cx, cy, is_nearby);
     }
 
+    // Ambient NPCs
+    for (ambient_mod.district_ambient, 0..) |anpc, idx| {
+        if (!anpc.isVisible(&gs.flags, gs.time)) continue;
+        const is_nearby = gs.nearby_ambient != null and gs.nearby_ambient.? == idx;
+        drawAmbientNpc(&anpc, cx, cy, is_nearby);
+    }
+
     // Player
     drawPlayer(&gs.player, cx, cy);
 
+    // Ambient speech bubble
+    if (gs.ambient_talk_timer > 0) {
+        if (gs.nearby_ambient) |idx| {
+            const anpc = &ambient_mod.district_ambient[idx];
+            drawAmbientSpeech(anpc, cx, cy);
+        }
+    }
+
     // Interaction prompt
-    if (!gs.dialogue.active) {
+    if (!gs.dialogue.active and gs.ambient_talk_timer <= 0) {
         if (gs.nearby_npc) |idx| {
             const npc = &npc_mod.district_npcs[idx];
             drawInteractPrompt(npc.name);
+        } else if (gs.nearby_ambient) |idx| {
+            const anpc = &ambient_mod.district_ambient[idx];
+            drawInteractPrompt(anpc.name);
         }
     }
 
@@ -173,6 +192,42 @@ fn drawGameplay(gs: *const GameState) void {
     if (gs.journal.open) {
         drawJournal(gs);
     }
+}
+
+const ambient_color = c.Color{ .r = 110, .g = 105, .b = 95, .a = 255 };
+const ambient_highlight_color = c.Color{ .r = 160, .g = 150, .b = 130, .a = 255 };
+
+fn drawAmbientNpc(anpc: *const ambient_mod.AmbientNpc, cx: f32, cy: f32, highlight: bool) void {
+    const size: c_int = i(anpc.size);
+    const sx = i(anpc.x - anpc.size / 2 - cx);
+    const sy = i(anpc.y - anpc.size / 2 - cy);
+
+    const color = if (highlight) ambient_highlight_color else ambient_color;
+    c.DrawRectangle(sx, sy, size, size, color);
+
+    if (highlight) {
+        const name_cstr = @as([*:0]const u8, @ptrCast(anpc.name.ptr));
+        const name_width = c.MeasureText(name_cstr, 12);
+        c.DrawText(name_cstr, sx + @divTrunc(size - name_width, 2), sy - 16, 12, label_color);
+    }
+}
+
+fn drawAmbientSpeech(anpc: *const ambient_mod.AmbientNpc, cx: f32, cy: f32) void {
+    const line_cstr = @as([*:0]const u8, @ptrCast(anpc.line.ptr));
+    const name_cstr = @as([*:0]const u8, @ptrCast(anpc.name.ptr));
+
+    // Speech bubble above the NPC
+    const sx = i(anpc.x - cx);
+    const sy = i(anpc.y - anpc.size / 2 - cy) - 50;
+
+    const line_width = c.MeasureText(line_cstr, 14);
+    const name_width = c.MeasureText(name_cstr, 12);
+    const bubble_w = @max(line_width, name_width) + 16;
+    const bx = sx - @divTrunc(bubble_w, 2);
+
+    c.DrawRectangle(bx, sy, bubble_w, 38, hud_bg);
+    c.DrawText(name_cstr, bx + 6, sy + 2, 12, gold);
+    c.DrawText(line_cstr, bx + 6, sy + 18, 14, warm_stone);
 }
 
 fn drawNpc(npc: *const npc_mod.Npc, cx: f32, cy: f32, highlight: bool) void {

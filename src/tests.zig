@@ -11,5 +11,6 @@ test {
     _ = @import("journal.zig");
     _ = @import("time_of_day.zig");
     _ = @import("vigil.zig");
+    _ = @import("ambient.zig");
     _ = @import("test_quest_flow.zig");
 }

@@ -17,6 +17,7 @@ const TimeOfDay = time_mod.TimeOfDay;
 const vigil_mod = @import("vigil.zig");
 const VigilState = vigil_mod.VigilState;
 const npc_mod = @import("npc.zig");
+const ambient_mod = @import("ambient.zig");
 
 pub const screen_width: f32 = 1280;
 pub const screen_height: f32 = 720;
@@ -44,6 +45,8 @@ pub const GameState = struct {
     camera_y: f32 = 0,
     dialogue: DialogueState = .{},
     nearby_npc: ?usize = null,
+    nearby_ambient: ?usize = null,
+    ambient_talk_timer: f32 = 0,
     flags: Flags = .{},
     quests: QuestLog = .{},
     formation: Formation = .{},
@@ -62,6 +65,8 @@ pub const GameState = struct {
         self.camera_y = 0;
         self.dialogue = .{};
         self.nearby_npc = null;
+        self.nearby_ambient = null;
+        self.ambient_talk_timer = 0;
         self.flags = .{};
         self.quests = .{};
         self.formation = .{};
@@ -133,9 +138,19 @@ pub const GameState = struct {
         self.time = time_mod.computeTimeOfDay(&self.flags);
     }
 
+    pub fn talkToAmbient(self: *GameState) void {
+        if (self.nearby_ambient != null) {
+            self.ambient_talk_timer = 3.0;
+        }
+    }
+
     pub fn updateGameplay(self: *GameState, input: Input, dt: f32) void {
         if (!self.dialogue.active) {
             self.player.update(input, dt, world_bounds);
+        }
+
+        if (self.ambient_talk_timer > 0) {
+            self.ambient_talk_timer -= dt;
         }
 
         self.nearby_npc = npc_mod.findInteractable(
@@ -144,6 +159,19 @@ pub const GameState = struct {
             self.player.centerY(),
             &self.flags,
         );
+
+        // Only check ambient if no quest NPC nearby
+        if (self.nearby_npc == null) {
+            self.nearby_ambient = ambient_mod.findNearby(
+                &ambient_mod.district_ambient,
+                self.player.centerX(),
+                self.player.centerY(),
+                &self.flags,
+                self.time,
+            );
+        } else {
+            self.nearby_ambient = null;
+        }
 
         self.camera_x = self.player.centerX() - screen_width / 2.0;
         self.camera_y = self.player.centerY() - screen_height / 2.0;
