@@ -10,6 +10,8 @@ const game_title = "Axios \xe2\x80\x94 Constantinople, 4th Century";
 
 var gs: GameState = GameState.init();
 var steam: Steam = undefined;
+var save_msg_timer: f32 = 0;
+var save_msg: [*:0]const u8 = "";
 
 pub fn main() void {
 
@@ -27,9 +29,16 @@ pub fn main() void {
         const dt = c.GetFrameTime();
         update(dt);
 
+        if (save_msg_timer > 0) save_msg_timer -= dt;
+
         c.BeginDrawing();
         defer c.EndDrawing();
         render.drawFrame(&gs, save_mod.hasSave());
+
+        // Save notification overlay
+        if (save_msg_timer > 0) {
+            c.DrawText(save_msg, 12, 720 - 30, 18, c.Color{ .r = 212, .g = 175, .b = 55, .a = 255 });
+        }
     }
 }
 
@@ -51,11 +60,14 @@ fn update(dt: f32) void {
             if (c.IsKeyPressed(c.KEY_ESCAPE)) {
                 gs.pause();
             }
-            if ((c.IsKeyDown(c.KEY_LEFT_SHIFT) or c.IsKeyDown(c.KEY_RIGHT_SHIFT)) and c.IsKeyPressed(c.KEY_S)) {
+            const shift_save = (c.IsKeyDown(c.KEY_LEFT_SHIFT) or c.IsKeyDown(c.KEY_RIGHT_SHIFT)) and c.IsKeyPressed(c.KEY_S);
+            if (shift_save or c.IsKeyPressed(c.KEY_F5)) {
                 if (save_mod.save(&gs)) {
-                    std.log.info("Game saved", .{});
-                } else |err| {
-                    std.log.err("Save failed: {}", .{err});
+                    save_msg = "Game saved";
+                    save_msg_timer = 2.0;
+                } else |_| {
+                    save_msg = "Save failed!";
+                    save_msg_timer = 2.0;
                 }
             }
         },
