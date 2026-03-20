@@ -196,13 +196,100 @@ fn drawInteractPrompt(name: []const u8) void {
     c.DrawText(prompt_text, px, py, 18, gold);
 }
 
+fn drawWrappedText(text: [*:0]const u8, x: c_int, y: c_int, font_size: c_int, max_width: c_int, color: c.Color) c_int {
+    // Word-wrap text manually and return total height drawn
+    const spacing: c_int = 2;
+    const line_height = font_size + 4;
+    var line_y = y;
+    var start: usize = 0;
+    var last_space: usize = 0;
+    var idx: usize = 0;
+
+    while (text[idx] != 0) : (idx += 1) {
+        if (text[idx] == ' ') last_space = idx;
+
+        // Measure from start to current position
+        var measure_buf: [512]u8 = undefined;
+        const len = idx - start + 1;
+        if (len >= measure_buf.len) break;
+        for (start..idx + 1, 0..) |si, di| {
+            measure_buf[di] = text[si];
+        }
+        measure_buf[len] = 0;
+        const w = c.MeasureText(@ptrCast(&measure_buf), font_size);
+
+        if (w > max_width - spacing) {
+            // Wrap at last space
+            const break_at = if (last_space > start) last_space else idx;
+            var line_buf: [512]u8 = undefined;
+            const line_len = break_at - start;
+            if (line_len >= line_buf.len) break;
+            for (start..break_at, 0..) |si, di| {
+                line_buf[di] = text[si];
+            }
+            line_buf[line_len] = 0;
+            c.DrawText(@ptrCast(&line_buf), x, line_y, font_size, color);
+            line_y += line_height;
+
+            // Skip the space
+            start = break_at;
+            if (text[start] == ' ') start += 1;
+            last_space = start;
+        }
+    }
+
+    // Draw remaining text
+    if (start < idx) {
+        var line_buf: [512]u8 = undefined;
+        const line_len = idx - start;
+        if (line_len < line_buf.len) {
+            for (start..idx, 0..) |si, di| {
+                line_buf[di] = text[si];
+            }
+            line_buf[line_len] = 0;
+            c.DrawText(@ptrCast(&line_buf), x, line_y, font_size, color);
+            line_y += line_height;
+        }
+    }
+
+    return line_y - y;
+}
+
 fn drawDialogue(ds: *const DialogueState) void {
     const node = ds.currentNode() orelse return;
 
-    // Dialogue box dimensions
     const box_w = screen_width - 80;
-    const box_h = 200;
     const box_x = 40;
+    const pad = 16;
+    const text_width = box_w - pad * 2;
+    const text_font: c_int = 17;
+    const choice_font: c_int = 17;
+
+    // Calculate required height
+    const speaker = @as([*:0]const u8, @ptrCast(node.speaker.ptr));
+    const text = @as([*:0]const u8, @ptrCast(node.text.ptr));
+
+    var content_h: c_int = 32 + 8; // speaker + gap
+    // Estimate text height (measure by drawing offscreen or approximate)
+    content_h += measureWrappedHeight(text, text_font, text_width);
+    content_h += 12; // gap after text
+
+    if (node.choices.len > 0) {
+        for (node.choices) |choice| {
+            const choice_text = @as([*:0]const u8, @ptrCast(choice.text.ptr));
+            content_h += measureWrappedHeight(choice_text, choice_font, text_width - 28);
+            content_h += 4;
+        }
+    } else {
+        content_h += 24; // continue prompt
+    }
+
+    content_h += pad;
+
+    // Minimum height
+    if (content_h < 120) content_h = 120;
+
+    const box_h = content_h;
     const box_y = screen_height - box_h - 20;
 
     // Background
@@ -215,30 +302,58 @@ fn drawDialogue(ds: *const DialogueState) void {
     }, 2, dialogue_border);
 
     // Speaker name
-    const speaker = @as([*:0]const u8, @ptrCast(node.speaker.ptr));
-    c.DrawText(speaker, box_x + 16, box_y + 12, 20, gold);
+    c.DrawText(speaker, box_x + pad, box_y + 12, 20, gold);
 
-    // Dialogue text
-    const text = @as([*:0]const u8, @ptrCast(node.text.ptr));
-    c.DrawText(text, box_x + 16, box_y + 40, 18, warm_stone);
+    // Dialogue text (wrapped)
+    const text_y = box_y + 40;
+    const text_h = drawWrappedText(text, box_x + pad, text_y, text_font, text_width, warm_stone);
 
     if (node.choices.len > 0) {
-        // Draw choices
-        var choice_y = box_y + 100;
+        var choice_y = text_y + text_h + 12;
         for (node.choices, 0..) |choice, idx| {
             const is_selected = idx == ds.selected_choice;
             const color = if (is_selected) choice_selected else choice_normal;
             const prefix: [*:0]const u8 = if (is_selected) "> " else "  ";
             const choice_text = @as([*:0]const u8, @ptrCast(choice.text.ptr));
 
-            c.DrawText(prefix, box_x + 20, choice_y, 18, color);
-            c.DrawText(choice_text, box_x + 40, choice_y, 18, color);
-            choice_y += 24;
+            c.DrawText(prefix, box_x + pad + 4, choice_y, choice_font, color);
+            const ch = drawWrappedText(choice_text, box_x + pad + 28, choice_y, choice_font, text_width - 28, color);
+            choice_y += ch + 4;
         }
     } else {
-        // Continue prompt
         c.DrawText("[ENTER] Continue", box_x + box_w - 180, box_y + box_h - 28, 16, muted);
     }
+}
+
+fn measureWrappedHeight(text: [*:0]const u8, font_size: c_int, max_width: c_int) c_int {
+    const line_height = font_size + 4;
+    var lines: c_int = 1;
+    var start: usize = 0;
+    var last_space: usize = 0;
+    var idx: usize = 0;
+
+    while (text[idx] != 0) : (idx += 1) {
+        if (text[idx] == ' ') last_space = idx;
+
+        var measure_buf: [512]u8 = undefined;
+        const len = idx - start + 1;
+        if (len >= measure_buf.len) break;
+        for (start..idx + 1, 0..) |si, di| {
+            measure_buf[di] = text[si];
+        }
+        measure_buf[len] = 0;
+        const w = c.MeasureText(@ptrCast(&measure_buf), font_size);
+
+        if (w > max_width - 2) {
+            lines += 1;
+            const break_at = if (last_space > start) last_space else idx;
+            start = break_at;
+            if (text[start] == ' ') start += 1;
+            last_space = start;
+        }
+    }
+
+    return lines * line_height;
 }
 
 fn drawPlayer(p: *const player_mod.Player, cx: f32, cy: f32) void {
