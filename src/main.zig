@@ -51,7 +51,7 @@ fn update(dt: f32) void {
             if (c.IsKeyPressed(c.KEY_ESCAPE)) {
                 gs.pause();
             }
-            if (c.IsKeyPressed(c.KEY_F5)) {
+            if (c.IsKeyPressed(c.KEY_S) and (c.IsKeyDown(c.KEY_LEFT_SHIFT) or c.IsKeyDown(c.KEY_RIGHT_SHIFT))) {
                 save_mod.save(&gs) catch {};
             }
         },
