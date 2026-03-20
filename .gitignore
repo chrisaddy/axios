@@ -1,0 +1,25 @@
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
+
+# Zig
+zig-out/
+.zig-cache/
+zig-pkg/
+
+# Steamworks SDK (proprietary — do not commit)
+vendor/steamworks/sdk/
+
+# Save files
+saves/
+
+# OS
+.DS_Store
+Thumbs.db
