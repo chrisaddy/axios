@@ -1,4 +1,4 @@
-// All raylib rendering lives here. Game logic modules have no raylib dependency.
+//! All raylib rendering lives here. Game logic modules have no raylib dependency.
 
 const c = @import("raylib.zig").c;
 const GameState = @import("game_state.zig").GameState;
@@ -70,6 +70,8 @@ fn i(f: f32) c_int {
     return @intFromFloat(f);
 }
 
+/// Renders a single frame based on the current game state and scene.
+/// Dispatches to the appropriate scene renderer (title, gameplay, paused, or vigil).
 pub fn drawFrame(gs: *const GameState, has_save: bool, tex: *const Textures) void {
     c.ClearBackground(bg);
     switch (gs.scene) {

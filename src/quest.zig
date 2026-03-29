@@ -1,8 +1,9 @@
-// Quest system — tracks quest stages and objectives. No raylib dependency.
+//! Quest system — tracks quest stages and objectives. No raylib dependency.
 
 const std = @import("std");
 const Flag = @import("flags.zig").Flag;
 
+/// Identifies a specific quest in the game.
 pub const QuestId = enum(u8) {
     first_instruction,
     widows_oil,
@@ -10,6 +11,7 @@ pub const QuestId = enum(u8) {
     _,
 };
 
+/// Progression stage for all quests, using per-quest prefixed variants.
 pub const QuestStage = enum(u8) {
     not_started,
     // First Instruction stages
@@ -31,21 +33,25 @@ pub const QuestStage = enum(u8) {
     _,
 };
 
+/// A single quest objective with display text and completion state.
 pub const Objective = struct {
     text: []const u8,
     complete: bool = false,
 };
 
+/// A quest with an id, name, description, and current progression stage.
 pub const Quest = struct {
     id: QuestId,
     name: []const u8,
     stage: QuestStage = .not_started,
     description: []const u8,
 
+    /// Returns true if the quest has been started but not yet completed.
     pub fn isActive(self: *const Quest) bool {
         return self.stage != .not_started and !self.isComplete();
     }
 
+    /// Returns true if the quest has reached its final completion stage.
     pub fn isComplete(self: *const Quest) bool {
         return switch (self.id) {
             .first_instruction => self.stage == .fi_complete,
@@ -55,6 +61,7 @@ pub const Quest = struct {
         };
     }
 
+    /// Returns the display text for the current objective, or null if none.
     pub fn currentObjective(self: *const Quest) ?[]const u8 {
         return switch (self.stage) {
             .not_started => null,
@@ -79,6 +86,7 @@ pub const Quest = struct {
     }
 };
 
+/// Collection of all quests in the game, indexed by QuestId.
 pub const QuestLog = struct {
     quests: [3]Quest = .{
         .{ .id = .first_instruction, .name = "First Instruction", .description = "Father Theophilos has tasks for you before the evening gathering." },
@@ -86,14 +94,17 @@ pub const QuestLog = struct {
         .{ .id = .false_rumor, .name = "A False Rumor", .description = "A troubling rumor is spreading through the district." },
     },
 
+    /// Returns a mutable pointer to the quest with the given id.
     pub fn get(self: *QuestLog, id: QuestId) *Quest {
         return &self.quests[@intFromEnum(id)];
     }
 
+    /// Returns a const pointer to the quest with the given id.
     pub fn getConst(self: *const QuestLog, id: QuestId) *const Quest {
         return &self.quests[@intFromEnum(id)];
     }
 
+    /// Starts a quest by setting it to its first active stage.
     pub fn start(self: *QuestLog, id: QuestId) void {
         const q = self.get(id);
         if (q.stage == .not_started) {
@@ -106,10 +117,12 @@ pub const QuestLog = struct {
         }
     }
 
+    /// Advances a quest to the specified stage.
     pub fn advance(self: *QuestLog, id: QuestId, to: QuestStage) void {
         self.get(id).stage = to;
     }
 
+    /// Returns the first active (started, not complete) quest, or null.
     pub fn activeQuest(self: *const QuestLog) ?*const Quest {
         for (&self.quests) |*q| {
             if (q.isActive()) return q;
@@ -117,6 +130,7 @@ pub const QuestLog = struct {
         return null;
     }
 
+    /// Returns the objective text for the current active quest, or null.
     pub fn activeObjective(self: *const QuestLog) ?[]const u8 {
         if (self.activeQuest()) |q| {
             return q.currentObjective();

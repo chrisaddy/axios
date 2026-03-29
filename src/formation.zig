@@ -1,8 +1,9 @@
-// Formation tracking — virtues shaped by player choices. No raylib dependency.
-// These are soft internal values, not heavy RPG stats.
+//! Formation tracking — virtues shaped by player choices. No raylib dependency.
+//! These are soft internal values, not heavy RPG stats.
 
 const std = @import("std");
 
+/// The five cardinal virtues that can be shaped by player choices.
 pub const Virtue = enum(u8) {
     mercy,
     truth,
@@ -13,19 +14,23 @@ pub const Virtue = enum(u8) {
 
 const virtue_count = 5;
 
+/// Tracks the player's moral formation as an array of virtue scores, each clamped to [-100, 100].
 pub const Formation = struct {
     values: [virtue_count]i8 = [_]i8{0} ** virtue_count,
 
+    /// Returns the current score for the given virtue.
     pub fn get(self: *const Formation, v: Virtue) i8 {
         return self.values[@intFromEnum(v)];
     }
 
+    /// Adjusts a virtue score by the given amount, clamping the result to [-100, 100].
     pub fn add(self: *Formation, v: Virtue, amount: i8) void {
         const idx = @intFromEnum(v);
         const result = @as(i16, self.values[idx]) + amount;
         self.values[idx] = @intCast(std.math.clamp(result, -100, 100));
     }
 
+    /// Returns the virtue with the highest positive score, or null if all are zero or negative.
     pub fn dominant(self: *const Formation) ?Virtue {
         var best: ?Virtue = null;
         var best_val: i8 = 0;
@@ -38,6 +43,7 @@ pub const Formation = struct {
         return best;
     }
 
+    /// Resets all virtue scores to zero.
     pub fn reset(self: *Formation) void {
         self.values = [_]i8{0} ** virtue_count;
     }

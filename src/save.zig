@@ -1,5 +1,5 @@
-// Save/load game state to disk.
-// Uses a simple binary format since Zig 0.16's JSON API requires Io.Writer.
+//! Save/load game state to disk.
+//! Uses a simple binary format since Zig 0.16's JSON API requires Io.Writer.
 
 const std = @import("std");
 const GameState = @import("game_state.zig").GameState;
@@ -14,16 +14,19 @@ const save_dir = "saves";
 const save_file = save_dir ++ "/slot1.sav";
 const magic: u32 = 0x4158494F; // "AXIO"
 
+/// Errors that can occur when writing a save file.
 pub const SaveError = error{
     WriteFailed,
 };
 
+/// Errors that can occur when reading a save file.
 pub const LoadError = error{
     FileNotFound,
     ReadFailed,
     InvalidFormat,
 };
 
+/// Serializes the current game state to a binary save file on disk.
 pub fn save(gs: *const GameState) SaveError!void {
     const data = gs.toSaveData();
 
@@ -50,6 +53,7 @@ pub fn save(gs: *const GameState) SaveError!void {
     if (c_io.fwrite(&data.formation, @sizeOf(@TypeOf(data.formation)), 1, file) != 1) return error.WriteFailed;
 }
 
+/// Reads a binary save file from disk and reconstructs the game state.
 pub fn load() LoadError!GameState {
     const file = c_io.fopen(save_file, "rb") orelse return error.FileNotFound;
     defer _ = c_io.fclose(file);
@@ -90,6 +94,7 @@ pub fn load() LoadError!GameState {
     });
 }
 
+/// Returns true if a save file exists on disk.
 pub fn hasSave() bool {
     const file = c_io.fopen(save_file, "rb");
     if (file) |f| {
@@ -99,6 +104,7 @@ pub fn hasSave() bool {
     return false;
 }
 
+/// Deletes the save file from disk, if it exists.
 pub fn deleteSave() void {
     _ = c_io.remove(save_file);
 }

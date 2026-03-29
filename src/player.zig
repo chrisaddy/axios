@@ -1,8 +1,11 @@
-// Pure game logic — no raylib dependency. Rendering is in render.zig.
+//! Pure game logic — no raylib dependency. Rendering is in render.zig.
 
+/// Side length of the player sprite in pixels.
 pub const player_size: f32 = 24;
+/// Player movement speed in pixels per second.
 pub const player_speed: f32 = 160.0;
 
+/// Cardinal direction the player is facing.
 pub const Direction = enum {
     north,
     south,
@@ -10,6 +13,7 @@ pub const Direction = enum {
     west,
 };
 
+/// Directional input state for a single frame.
 pub const Input = struct {
     up: bool = false,
     down: bool = false,
@@ -17,6 +21,7 @@ pub const Input = struct {
     right: bool = false,
 };
 
+/// Axis-aligned bounding rectangle used for world and collision bounds.
 pub const Bounds = struct {
     x: f32,
     y: f32,
@@ -24,15 +29,18 @@ pub const Bounds = struct {
     h: f32,
 };
 
+/// Player entity with position and facing direction.
 pub const Player = struct {
     x: f32,
     y: f32,
     facing: Direction = .south,
 
+    /// Creates a player at the given position, facing south.
     pub fn init(x: f32, y: f32) Player {
         return .{ .x = x, .y = y };
     }
 
+    /// Moves the player based on input, normalizing diagonal movement and clamping to bounds.
     pub fn update(self: *Player, input: Input, dt: f32, bounds: Bounds) void {
         var dx: f32 = 0;
         var dy: f32 = 0;
@@ -69,15 +77,18 @@ pub const Player = struct {
         self.y = clamp(self.y, bounds.y, bounds.y + bounds.h - player_size);
     }
 
+    /// Returns the horizontal center of the player sprite.
     pub fn centerX(self: *const Player) f32 {
         return self.x + player_size / 2.0;
     }
 
+    /// Returns the vertical center of the player sprite.
     pub fn centerY(self: *const Player) f32 {
         return self.y + player_size / 2.0;
     }
 };
 
+/// Clamps a value to the inclusive range [min, max].
 pub fn clamp(val: f32, min: f32, max: f32) f32 {
     if (val < min) return min;
     if (val > max) return max;
