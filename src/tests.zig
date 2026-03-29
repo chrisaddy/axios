@@ -1,4 +1,4 @@
-// Test entry point — only imports pure logic modules (no raylib).
+//! Test entry point — only imports pure logic modules (no raylib).
 test {
     _ = @import("player.zig");
     _ = @import("game_state.zig");

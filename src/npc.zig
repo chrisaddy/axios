@@ -1,4 +1,4 @@
-// NPC data and interaction logic. No raylib dependency.
+//! NPC data and interaction logic. No raylib dependency.
 
 const std = @import("std");
 const Dialogue = @import("dialogue.zig").Dialogue;
@@ -10,12 +10,14 @@ const QuestLog = @import("quest.zig").QuestLog;
 
 const interaction_radius: f32 = 50.0;
 
+/// A conditional dialogue reference: the dialogue is available when its flag and quest-stage requirements are met.
 pub const DialogueEntry = struct {
     dialogue: *const Dialogue,
     requires_flag: Flag = .none,
     requires_stage: QuestStage = .not_started,
 };
 
+/// A non-player character with a position, visibility requirement, and ordered list of dialogue entries.
 pub const Npc = struct {
     name: []const u8,
     x: f32,
@@ -24,10 +26,12 @@ pub const Npc = struct {
     size: f32 = 20,
     requires: Flag = .none,
 
+    /// Returns true if this NPC should be visible given the current flags.
     pub fn isVisible(self: *const Npc, flags: *const Flags) bool {
         return self.requires == .none or flags.has(self.requires);
     }
 
+    /// Selects the most specific matching dialogue by walking entries in reverse priority order.
     pub fn selectDialogue(self: *const Npc, flags: *const Flags, quest_log: *const QuestLog) ?*const Dialogue {
         // Walk entries in reverse — later entries are more specific
         var i: usize = self.dialogues.len;
@@ -47,17 +51,20 @@ pub const Npc = struct {
         return null;
     }
 
+    /// Returns the Euclidean distance from this NPC to the given point.
     pub fn distanceTo(self: *const Npc, px: f32, py: f32) f32 {
         const dx = self.x - px;
         const dy = self.y - py;
         return @sqrt(dx * dx + dy * dy);
     }
 
+    /// Returns true if the given point is within interaction radius of this NPC.
     pub fn canInteract(self: *const Npc, px: f32, py: f32) bool {
         return self.distanceTo(px, py) < interaction_radius;
     }
 };
 
+/// Finds the closest visible NPC within interaction radius of the given point, returning its index.
 pub fn findInteractable(npcs: []const Npc, px: f32, py: f32, flags: *const Flags) ?usize {
     var closest_dist: f32 = interaction_radius;
     var closest_idx: ?usize = null;
@@ -80,6 +87,7 @@ pub fn findInteractable(npcs: []const Npc, px: f32, py: f32, flags: *const Flags
 
 // --- Father Theophilos ---
 
+/// Father Theophilos's introductory dialogue.
 pub const theophilos_intro = Dialogue{
     .id = "theophilos_intro",
     .grants = .spoke_to_theophilos,
@@ -111,6 +119,7 @@ pub const theophilos_intro = Dialogue{
     },
 };
 
+/// Father Theophilos's dialogue after the player has spoken to Anna.
 pub const theophilos_after_anna = Dialogue{
     .id = "theophilos_check_in",
     .nodes = &.{
@@ -121,6 +130,7 @@ pub const theophilos_after_anna = Dialogue{
     },
 };
 
+/// Father Theophilos's dialogue when the player returns after meeting the district's people.
 pub const theophilos_return = Dialogue{
     .id = "theophilos_return",
     .grants = .first_instruction_done,
@@ -146,6 +156,7 @@ pub const theophilos_return = Dialogue{
     },
 };
 
+/// Father Theophilos's dialogue while the Widow's Oil quest is in progress.
 pub const theophilos_during_oil = Dialogue{
     .id = "theophilos_during_oil",
     .nodes = &.{
@@ -156,6 +167,7 @@ pub const theophilos_during_oil = Dialogue{
     },
 };
 
+/// Father Theophilos's dialogue after the Widow's Oil quest is resolved.
 pub const theophilos_oil_resolved = Dialogue{
     .id = "theophilos_oil_resolved",
     .nodes = &.{
@@ -185,6 +197,7 @@ pub const theophilos_oil_resolved = Dialogue{
 
 // --- Anna ---
 
+/// Anna's introductory dialogue.
 pub const anna_intro = Dialogue{
     .id = "anna_intro",
     .grants = .spoke_to_anna,
@@ -223,6 +236,7 @@ pub const anna_intro = Dialogue{
     },
 };
 
+/// Anna's dialogue while waiting for the player to visit Helena.
 pub const anna_waiting = Dialogue{
     .id = "anna_waiting",
     .nodes = &.{
@@ -233,6 +247,7 @@ pub const anna_waiting = Dialogue{
     },
 };
 
+/// Anna's dialogue after the Widow's Oil quest is resolved.
 pub const anna_oil_resolved = Dialogue{
     .id = "anna_oil_resolved",
     .nodes = &.{
@@ -250,6 +265,7 @@ pub const anna_oil_resolved = Dialogue{
 
 // --- Stephanos ---
 
+/// Stephanos's introductory dialogue.
 pub const stephanos_intro = Dialogue{
     .id = "stephanos_intro",
     .grants = .spoke_to_stephanos,
@@ -277,6 +293,7 @@ pub const stephanos_intro = Dialogue{
 
 // --- Helena ---
 
+/// Helena's introductory dialogue.
 pub const helena_intro = Dialogue{
     .id = "helena_intro",
     .grants = .spoke_to_helena,
@@ -304,6 +321,7 @@ pub const helena_intro = Dialogue{
 
 // --- Markos ---
 
+/// Markos's introductory dialogue.
 pub const markos_intro = Dialogue{
     .id = "markos_intro",
     .grants = .spoke_to_markos,
@@ -341,6 +359,7 @@ pub const markos_intro = Dialogue{
     },
 };
 
+/// Markos's dialogue for the oil-quest resolution confrontation.
 pub const markos_resolution = Dialogue{
     .id = "markos_resolution",
     .nodes = &.{
@@ -374,6 +393,7 @@ pub const markos_resolution = Dialogue{
     },
 };
 
+/// Markos's dialogue after the oil quest is complete.
 pub const markos_after = Dialogue{
     .id = "markos_after",
     .nodes = &.{
@@ -386,6 +406,7 @@ pub const markos_after = Dialogue{
 
 // --- Helena outcome ---
 
+/// Helena's dialogue after receiving the oil delivery.
 pub const helena_resolved = Dialogue{
     .id = "helena_resolved",
     .grants = .oil_resolved,
@@ -411,6 +432,7 @@ pub const helena_resolved = Dialogue{
 
 // --- Diodoros ---
 
+/// Diodoros's introductory dialogue.
 pub const diodoros_intro = Dialogue{
     .id = "diodoros_intro",
     .grants = .spoke_to_diodoros,
@@ -436,6 +458,7 @@ pub const diodoros_intro = Dialogue{
     },
 };
 
+/// Diodoros's dialogue after revealing the oil diversion.
 pub const diodoros_after = Dialogue{
     .id = "diodoros_after",
     .nodes = &.{
@@ -450,6 +473,7 @@ pub const diodoros_after = Dialogue{
 // NPC placements
 // ============================================================
 
+/// All NPCs placed in the district, with their positions, visibility requirements, and dialogue tables.
 pub const district_npcs = [_]Npc{
     .{
         .name = "Father Theophilos",

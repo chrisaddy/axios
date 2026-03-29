@@ -1,5 +1,5 @@
-// Ambient NPCs — one-line characters that give the district life.
-// No quest logic, no branching. Just flavor text. No raylib dependency.
+//! Ambient NPCs — one-line characters that give the district life.
+//! No quest logic, no branching. Just flavor text. No raylib dependency.
 
 const std = @import("std");
 const Flag = @import("flags.zig").Flag;
@@ -7,6 +7,8 @@ const Flags = @import("flags.zig").Flags;
 const time_mod = @import("time_of_day.zig");
 const TimeOfDay = time_mod.TimeOfDay;
 
+/// A background NPC that delivers a single line of flavor dialogue.
+/// Ambient NPCs appear based on flag prerequisites and time-of-day windows.
 pub const AmbientNpc = struct {
     name: []const u8,
     x: f32,
@@ -17,6 +19,7 @@ pub const AmbientNpc = struct {
     min_time: TimeOfDay = .morning,
     max_time: TimeOfDay = .evening,
 
+    /// Returns true if this NPC should be shown, based on the player's current flags and time of day.
     pub fn isVisible(self: *const AmbientNpc, flags: *const Flags, time: TimeOfDay) bool {
         const flag_ok = self.requires == .none or flags.has(self.requires);
         const time_ok = @intFromEnum(time) >= @intFromEnum(self.min_time) and
@@ -27,6 +30,7 @@ pub const AmbientNpc = struct {
 
 const interaction_radius: f32 = 40.0;
 
+/// Finds the index of the closest visible ambient NPC within interaction radius, or null if none.
 pub fn findNearby(npcs: []const AmbientNpc, px: f32, py: f32, flags: *const Flags, time: TimeOfDay) ?usize {
     var closest_dist: f32 = interaction_radius;
     var closest_idx: ?usize = null;
@@ -49,6 +53,7 @@ pub fn findNearby(npcs: []const AmbientNpc, px: f32, py: f32, flags: *const Flag
 // Ambient NPC placements
 // ============================================================
 
+/// All ambient NPC placements for the Portico Quarter district.
 pub const district_ambient = [_]AmbientNpc{
     // Market street
     .{ .name = "Fish Seller", .x = 300, .y = 530, .line = "Fresh from the harbor! Best mackerel in the quarter!", .max_time = .dusk },

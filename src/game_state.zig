@@ -1,4 +1,4 @@
-// Pure game state machine — no raylib dependency.
+//! Pure game state machine — no raylib dependency.
 
 const std = @import("std");
 const Player = @import("player.zig").Player;
@@ -19,12 +19,18 @@ const VigilState = vigil_mod.VigilState;
 const npc_mod = @import("npc.zig");
 const ambient_mod = @import("ambient.zig");
 
+/// Viewport width in pixels.
 pub const screen_width: f32 = 1280;
+/// Viewport height in pixels.
 pub const screen_height: f32 = 720;
+/// Total world width in pixels.
 pub const world_w: f32 = 2400;
+/// Total world height in pixels.
 pub const world_h: f32 = 1800;
+/// Bounding rectangle for the entire game world.
 pub const world_bounds = Bounds{ .x = 0, .y = 0, .w = world_w, .h = world_h };
 
+/// Represents the current high-level scene or screen.
 pub const Scene = enum {
     title,
     gameplay,
@@ -32,12 +38,14 @@ pub const Scene = enum {
     vigil,
 };
 
+/// Actions that can be triggered from the pause menu.
 pub const MenuAction = enum {
     none,
     resume_game,
     quit_to_title,
 };
 
+/// Central game state holding player, scene, dialogue, quests, and all subsystems.
 pub const GameState = struct {
     scene: Scene = .title,
     player: Player = Player.init(1050, 750),
@@ -54,10 +62,12 @@ pub const GameState = struct {
     time: TimeOfDay = .morning,
     vigil: VigilState = .{},
 
+    /// Creates a default game state starting at the title screen.
     pub fn init() GameState {
         return .{};
     }
 
+    /// Resets all state and transitions to gameplay.
     pub fn startGame(self: *GameState) void {
         self.scene = .gameplay;
         self.player = Player.init(1050, 750);
@@ -75,10 +85,12 @@ pub const GameState = struct {
         self.vigil = .{};
     }
 
+    /// Returns true if a dialogue is currently active.
     pub fn inDialogue(self: *const GameState) bool {
         return self.dialogue.active;
     }
 
+    /// Attempts to start a dialogue with the nearest NPC.
     pub fn tryInteract(self: *GameState) void {
         if (self.dialogue.active) return;
         if (self.nearby_npc) |idx| {
@@ -90,6 +102,7 @@ pub const GameState = struct {
         }
     }
 
+    /// Advances the current dialogue by one step, applying any effects.
     pub fn advanceDialogue(self: *GameState) void {
         const flag = self.dialogue.advance();
         if (flag != .none) {
@@ -106,12 +119,14 @@ pub const GameState = struct {
         }
     }
 
+    /// Transitions to the vigil scene and builds vigil state from current flags.
     pub fn startVigil(self: *GameState) void {
         self.flags.grant(.vigil_triggered);
         self.vigil = vigil_mod.buildVigil(&self.flags, &self.formation);
         self.scene = .vigil;
     }
 
+    /// Advances the vigil sequence; returns to title when finished.
     pub fn advanceVigil(self: *GameState) void {
         const ended = self.vigil.advance();
         if (ended) {
@@ -138,12 +153,14 @@ pub const GameState = struct {
         self.time = time_mod.computeTimeOfDay(&self.flags);
     }
 
+    /// Triggers a brief ambient NPC talk timer if one is nearby.
     pub fn talkToAmbient(self: *GameState) void {
         if (self.nearby_ambient != null) {
             self.ambient_talk_timer = 3.0;
         }
     }
 
+    /// Runs one gameplay frame: moves the player, finds nearby NPCs, and updates the camera.
     pub fn updateGameplay(self: *GameState, input: Input, dt: f32) void {
         if (!self.dialogue.active) {
             self.player.update(input, dt, world_bounds);
@@ -179,12 +196,14 @@ pub const GameState = struct {
         self.camera_y = clamp(self.camera_y, 0, world_h - screen_height);
     }
 
+    /// Pauses the game if currently in gameplay.
     pub fn pause(self: *GameState) void {
         if (self.scene == .gameplay) {
             self.scene = .paused;
         }
     }
 
+    /// Applies a pause-menu action such as resume or quit to title.
     pub fn applyMenuAction(self: *GameState, action: MenuAction) void {
         switch (action) {
             .none => {},
@@ -197,6 +216,7 @@ pub const GameState = struct {
         }
     }
 
+    /// Serializable snapshot of game state for saving to disk.
     pub const SaveData = struct {
         player_x: f32,
         player_y: f32,
@@ -209,6 +229,7 @@ pub const GameState = struct {
         version: u32 = 3,
     };
 
+    /// Converts the current game state into a serializable save snapshot.
     pub fn toSaveData(self: *const GameState) SaveData {
         var quest_stages: [3]u8 = undefined;
         for (self.quests.quests, 0..) |q, i| {
@@ -226,6 +247,7 @@ pub const GameState = struct {
         };
     }
 
+    /// Reconstructs a game state from a previously saved snapshot.
     pub fn fromSaveData(data: SaveData) GameState {
         var gs = GameState{
             .scene = .gameplay,

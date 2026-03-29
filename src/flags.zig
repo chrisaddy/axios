@@ -1,7 +1,8 @@
-// Game progression flags. Tracks what the player has unlocked through dialogue and quests.
+//! Game progression flags. Tracks what the player has unlocked through dialogue and quests.
 
 const std = @import("std");
 
+/// Named progression flags representing dialogue milestones, quest states, and knowledge gained.
 pub const Flag = enum(u8) {
     none = 0,
     spoke_to_theophilos,
@@ -26,21 +27,25 @@ pub const Flag = enum(u8) {
 
 const max_flags = 32;
 
+/// A fixed-size boolean array that stores which progression flags have been granted.
 pub const Flags = struct {
     set: [max_flags]bool = [_]bool{false} ** max_flags,
 
+    /// Returns true if the given flag has been granted.
     pub fn has(self: *const Flags, flag: Flag) bool {
         const idx = @intFromEnum(flag);
         if (idx >= max_flags) return false;
         return self.set[idx];
     }
 
+    /// Grants (sets to true) the given flag.
     pub fn grant(self: *Flags, flag: Flag) void {
         const idx = @intFromEnum(flag);
         if (idx >= max_flags) return;
         self.set[idx] = true;
     }
 
+    /// Resets all flags to false.
     pub fn reset(self: *Flags) void {
         self.set = [_]bool{false} ** max_flags;
     }

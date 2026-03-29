@@ -1,5 +1,5 @@
-// Journal / codex system. Pure data, no raylib dependency.
-// Tracks quest log, people met, and terms learned.
+//! Journal / codex system. Pure data, no raylib dependency.
+//! Tracks quest log, people met, and terms learned.
 
 const std = @import("std");
 const Flags = @import("flags.zig").Flags;
@@ -7,24 +7,28 @@ const Flag = @import("flags.zig").Flag;
 const QuestLog = @import("quest.zig").QuestLog;
 const QuestId = @import("quest.zig").QuestId;
 
+/// The journal's navigable tabs.
 pub const Tab = enum {
     quests,
     people,
     codex,
 };
 
+/// A person the player can meet, unlocked when the corresponding flag is granted.
 pub const PersonEntry = struct {
     name: []const u8,
     description: []const u8,
     requires: Flag,
 };
 
+/// A glossary term with its definition, unlocked when the corresponding flag is granted.
 pub const CodexEntry = struct {
     term: []const u8,
     definition: []const u8,
     requires: Flag,
 };
 
+/// All known people entries, displayed in the journal when their required flag is set.
 pub const people_entries = [_]PersonEntry{
     .{ .name = "Father Theophilos", .description = "Priest and catechist at the parish church. Warm, serious, perceptive.", .requires = .spoke_to_theophilos },
     .{ .name = "Anna", .description = "Deaconess who organizes charitable work. Composed, intelligent, quietly formidable.", .requires = .spoke_to_anna },
@@ -34,6 +38,7 @@ pub const people_entries = [_]PersonEntry{
     .{ .name = "Diodoros", .description = "Porter at the loading court. Blunt, practical, observant.", .requires = .spoke_to_diodoros },
 };
 
+/// All codex glossary entries, displayed in the journal when their required flag is set.
 pub const codex_entries = [_]CodexEntry{
     .{ .term = "Catechumen", .definition = "One preparing for baptism through instruction, prayer, and moral formation.", .requires = .spoke_to_theophilos },
     .{ .term = "Deaconess", .definition = "A woman ordained to serve the church through charitable work and ministry.", .requires = .spoke_to_anna },
@@ -43,14 +48,17 @@ pub const codex_entries = [_]CodexEntry{
     .{ .term = "Discernment", .definition = "The practice of distinguishing truth from falsehood, wisdom from cleverness.", .requires = .spoke_to_stephanos },
 };
 
+/// Runtime state for the journal UI: whether it is open and which tab is selected.
 pub const JournalState = struct {
     open: bool = false,
     tab: Tab = .quests,
 
+    /// Toggles the journal open or closed.
     pub fn toggle(self: *JournalState) void {
         self.open = !self.open;
     }
 
+    /// Advances to the next tab, wrapping from codex back to quests.
     pub fn nextTab(self: *JournalState) void {
         self.tab = switch (self.tab) {
             .quests => .people,
@@ -59,6 +67,7 @@ pub const JournalState = struct {
         };
     }
 
+    /// Moves to the previous tab, wrapping from quests back to codex.
     pub fn prevTab(self: *JournalState) void {
         self.tab = switch (self.tab) {
             .quests => .codex,
@@ -68,6 +77,7 @@ pub const JournalState = struct {
     }
 };
 
+/// Returns the number of people entries whose required flag has been granted.
 pub fn countVisiblePeople(flags: *const Flags) u8 {
     var count: u8 = 0;
     for (people_entries) |entry| {
@@ -76,6 +86,7 @@ pub fn countVisiblePeople(flags: *const Flags) u8 {
     return count;
 }
 
+/// Returns the number of codex entries whose required flag has been granted.
 pub fn countVisibleCodex(flags: *const Flags) u8 {
     var count: u8 = 0;
     for (codex_entries) |entry| {

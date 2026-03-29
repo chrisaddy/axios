@@ -1,11 +1,12 @@
-// The Vigil — culminating scene of the MVP vertical slice.
-// A sequence of text beats reflecting the player's journey. No raylib dependency.
+//! The Vigil — culminating scene of the MVP vertical slice.
+//! A sequence of text beats reflecting the player's journey. No raylib dependency.
 
 const std = @import("std");
 const Flags = @import("flags.zig").Flags;
 const Formation = @import("formation.zig").Formation;
 const Virtue = @import("formation.zig").Virtue;
 
+/// A single narrative moment in the vigil sequence, optionally attributed to a speaker.
 pub const Beat = struct {
     speaker: []const u8,
     text: []const u8,
@@ -13,17 +14,20 @@ pub const Beat = struct {
 
 const max_beats = 16;
 
+/// Tracks progression through the vigil's sequence of narrative beats.
 pub const VigilState = struct {
     beats: [max_beats]Beat = undefined,
     beat_count: u8 = 0,
     current_beat: u8 = 0,
     active: bool = false,
 
+    /// Returns the current beat, or null if the vigil is inactive or has ended.
     pub fn currentBeat(self: *const VigilState) ?*const Beat {
         if (!self.active or self.current_beat >= self.beat_count) return null;
         return &self.beats[self.current_beat];
     }
 
+    /// Advances to the next beat. Returns true if the vigil has ended.
     pub fn advance(self: *VigilState) bool {
         if (self.current_beat + 1 >= self.beat_count) {
             self.active = false;
@@ -41,6 +45,8 @@ fn addBeat(state: *VigilState, speaker: []const u8, text: []const u8) void {
     }
 }
 
+/// Constructs the vigil scene by assembling beats that reflect the player's
+/// choices, quest outcomes, and dominant virtue.
 pub fn buildVigil(flags: *const Flags, formation: *const Formation) VigilState {
     var state = VigilState{};
     state.active = true;

@@ -1,4 +1,4 @@
-// End-to-end test: plays through both quests to verify the full chain works.
+//! End-to-end test: plays through both quests to verify the full chain works.
 
 const std = @import("std");
 const expect = std.testing.expect;

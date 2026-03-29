@@ -1,4 +1,4 @@
-// Pure dialogue data and state machine. No raylib dependency.
+//! Pure dialogue data and state machine. No raylib dependency.
 
 const std = @import("std");
 const Flag = @import("flags.zig").Flag;
@@ -7,6 +7,7 @@ const QuestId = @import("quest.zig").QuestId;
 const QuestStage = @import("quest.zig").QuestStage;
 const Virtue = @import("formation.zig").Virtue;
 
+/// Side effects that a dialogue node or choice can trigger (flags, quests, virtues).
 pub const Effect = struct {
     grant_flag: Flag = .none,
     start_quest: ?QuestId = null,
@@ -16,14 +17,17 @@ pub const Effect = struct {
     virtue_amount: i8 = 0,
 };
 
+/// Sentinel effect with no side effects.
 pub const no_effect = Effect{};
 
+/// A player-selectable dialogue choice with display text, target node, and optional effect.
 pub const Choice = struct {
     text: []const u8,
     next_node: u16,
     effect: Effect = no_effect,
 };
 
+/// A single dialogue node containing speaker, text, optional choices, and effects.
 pub const Node = struct {
     speaker: []const u8,
     text: []const u8,
@@ -32,12 +36,14 @@ pub const Node = struct {
     effect: Effect = no_effect, // effect applied when this node is reached
 };
 
+/// A complete dialogue tree: a sequence of nodes with an optional flag granted on completion.
 pub const Dialogue = struct {
     id: []const u8,
     nodes: []const Node,
     grants: Flag = .none,
 };
 
+/// Runtime state machine for navigating a dialogue tree.
 pub const DialogueState = struct {
     active: bool = false,
     dialogue: ?*const Dialogue = null,
@@ -46,6 +52,7 @@ pub const DialogueState = struct {
     // Effects to be applied by the game state after each advance
     pending_effect: Effect = no_effect,
 
+    /// Begins a dialogue, resetting state and applying the first node's effect.
     pub fn start(self: *DialogueState, dialogue: *const Dialogue) void {
         self.active = true;
         self.dialogue = dialogue;
@@ -58,28 +65,33 @@ pub const DialogueState = struct {
         }
     }
 
+    /// Returns the current dialogue node, or null if none.
     pub fn currentNode(self: *const DialogueState) ?*const Node {
         const d = self.dialogue orelse return null;
         if (self.current_node >= d.nodes.len) return null;
         return &d.nodes[self.current_node];
     }
 
+    /// Returns true if the current node presents player choices.
     pub fn hasChoices(self: *const DialogueState) bool {
         const node = self.currentNode() orelse return false;
         return node.choices.len > 0;
     }
 
+    /// Returns the number of choices available at the current node.
     pub fn choiceCount(self: *const DialogueState) u8 {
         const node = self.currentNode() orelse return 0;
         return @intCast(node.choices.len);
     }
 
+    /// Moves the choice selection cursor up by one.
     pub fn selectUp(self: *DialogueState) void {
         if (self.selected_choice > 0) {
             self.selected_choice -= 1;
         }
     }
 
+    /// Moves the choice selection cursor down by one.
     pub fn selectDown(self: *DialogueState) void {
         const count = self.choiceCount();
         if (count > 0 and self.selected_choice < count - 1) {
@@ -87,7 +99,7 @@ pub const DialogueState = struct {
         }
     }
 
-    // Advance dialogue. Returns the grant flag if dialogue ended.
+    /// Advances dialogue by one step. Returns the grant flag if the dialogue ended.
     pub fn advance(self: *DialogueState) Flag {
         const node = self.currentNode() orelse {
             return self.closeAndGrant();
@@ -125,6 +137,7 @@ pub const DialogueState = struct {
         return flag;
     }
 
+    /// Closes the dialogue and resets all state.
     pub fn close(self: *DialogueState) void {
         self.active = false;
         self.dialogue = null;

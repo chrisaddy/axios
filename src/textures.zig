@@ -1,8 +1,9 @@
-// Texture loading and management. This is the only module besides render.zig
-// that touches raylib for asset loading.
+//! Texture loading and management. This is the only module besides render.zig
+//! that touches raylib for asset loading.
 
 const c = @import("raylib.zig").c;
 
+/// Holds all loaded raylib textures (tiles and character sprites) used by the renderer.
 pub const Textures = struct {
     // Tiles
     ground: c.Texture2D = undefined,
@@ -29,6 +30,7 @@ pub const Textures = struct {
 
     loaded: bool = false,
 
+    /// Loads all tile and sprite textures from the assets directory.
     pub fn load(self: *Textures) void {
         self.ground = c.LoadTexture("assets/tiles/ground.png");
         self.path = c.LoadTexture("assets/tiles/path.png");
@@ -54,6 +56,7 @@ pub const Textures = struct {
         self.loaded = true;
     }
 
+    /// Releases all loaded textures from GPU memory.
     pub fn unload(self: *Textures) void {
         if (!self.loaded) return;
         c.UnloadTexture(self.ground);
@@ -78,6 +81,7 @@ pub const Textures = struct {
         self.loaded = false;
     }
 
+    /// Returns the sprite texture for a named quest NPC, falling back to the generic male sprite.
     pub fn npcTexture(self: *const Textures, name: []const u8) c.Texture2D {
         const std = @import("std");
         if (std.mem.eql(u8, name, "Father Theophilos")) return self.theophilos;
@@ -89,6 +93,7 @@ pub const Textures = struct {
         return self.ambient_male; // fallback
     }
 
+    /// Returns the sprite texture for a named ambient NPC, selecting by character archetype.
     pub fn ambientTexture(self: *const Textures, name: []const u8) c.Texture2D {
         const std = @import("std");
         if (std.mem.eql(u8, name, "Child")) return self.ambient_child;

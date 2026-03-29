@@ -1,16 +1,19 @@
-// Time-of-day system. Advances based on quest progress, not real time.
-// No raylib dependency.
+//! Time-of-day system. Advances based on quest progress, not real time.
+//! No raylib dependency.
 
 const std = @import("std");
 const Flag = @import("flags.zig").Flag;
 const Flags = @import("flags.zig").Flags;
 
+/// Represents the current period of the day. The game world transitions through
+/// these periods as the player completes quest milestones.
 pub const TimeOfDay = enum {
     morning,
     afternoon,
     dusk,
     evening,
 
+    /// Returns the human-readable display name for this time of day.
     pub fn label(self: TimeOfDay) []const u8 {
         return switch (self) {
             .morning => "Morning",
@@ -20,7 +23,7 @@ pub const TimeOfDay = enum {
         };
     }
 
-    // RGBA tint overlay for the scene
+    /// Returns the red component of the scene tint overlay for this time of day.
     pub fn tintR(self: TimeOfDay) u8 {
         return switch (self) {
             .morning => 0,
@@ -29,6 +32,7 @@ pub const TimeOfDay = enum {
             .evening => 20,
         };
     }
+    /// Returns the green component of the scene tint overlay for this time of day.
     pub fn tintG(self: TimeOfDay) u8 {
         return switch (self) {
             .morning => 0,
@@ -37,6 +41,7 @@ pub const TimeOfDay = enum {
             .evening => 10,
         };
     }
+    /// Returns the blue component of the scene tint overlay for this time of day.
     pub fn tintB(self: TimeOfDay) u8 {
         return switch (self) {
             .morning => 0,
@@ -45,6 +50,7 @@ pub const TimeOfDay = enum {
             .evening => 30,
         };
     }
+    /// Returns the alpha component of the scene tint overlay for this time of day.
     pub fn tintA(self: TimeOfDay) u8 {
         return switch (self) {
             .morning => 0,
@@ -55,7 +61,8 @@ pub const TimeOfDay = enum {
     }
 };
 
-// Time advances based on quest milestones, not a clock.
+/// Derives the current time of day from quest milestone flags.
+/// Time advances based on quest milestones, not a real-time clock.
 pub fn computeTimeOfDay(flags: *const Flags) TimeOfDay {
     if (flags.has(.oil_resolved)) return .evening;
     if (flags.has(.widows_oil_done)) return .evening;

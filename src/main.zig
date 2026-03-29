@@ -1,3 +1,5 @@
+//! Application entry point. Initializes the window, input loop, and game systems.
+
 const std = @import("std");
 const Steam = @import("steam.zig").Steam;
 const c = @import("raylib.zig").c;
@@ -15,6 +17,7 @@ var textures: Textures = .{};
 var save_msg_timer: f32 = 0;
 var save_msg: [*:0]const u8 = "";
 
+/// Opens the game window, loads assets, and runs the main loop until the window is closed.
 pub fn main() void {
 
     steam = Steam.init();
